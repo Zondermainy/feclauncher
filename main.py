@@ -1,11 +1,9 @@
-from PyQt5.QtCore import QThread, pyqtSignal, QSize, Qt
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QComboBox, QSpacerItem, QSizePolicy, \
-    QProgressBar, QPushButton, QApplication, QMainWindow, QApplication
-from PyQt5.QtGui import QPixmap, QIcon
-
-
 import shutil
-import os
+
+from PyQt5.QtCore import QThread, pyqtSignal, QSize, Qt
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QSpacerItem, QSizePolicy, \
+    QProgressBar, QPushButton, QMainWindow, QApplication, QErrorMessage, QMessageBox
+from PyQt5.QtGui import QPixmap, QIcon
 
 from minecraft_launcher_lib.utils import get_minecraft_directory, get_version_list
 from minecraft_launcher_lib.install import install_minecraft_version
@@ -19,6 +17,7 @@ from sys import argv, exit
 
 minecraft_directory = get_minecraft_directory().replace('minecraft', 'feclauncher')
 
+
 class LaunchThread(QThread):
     launch_setup_signal = pyqtSignal(str, str)
     progress_update_signal = pyqtSignal(int, int, str)
@@ -31,7 +30,6 @@ class LaunchThread(QThread):
     progress_max = 0
     progress_label = ''
 
-
     def __init__(self):
         super().__init__()
         self.launch_setup_signal.connect(self.launch_setup)
@@ -39,6 +37,23 @@ class LaunchThread(QThread):
     def launch_setup(self, version_id, username):
         self.version_id = version_id
         self.username = username
+
+
+        if username == '':
+            self.username = generate_username()[0]
+
+        for symbol in [' ', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']',
+                           '/', '|', ';', ':', "'", '<', '>', ',', '.', '/', '?']:
+
+            if symbol in username:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Неверный ник!")
+                msg.setInformativeText('Никнейм должен содержать только символы A-Z, Нижнее подчеркивание, цифры 0-9')
+                msg.setWindowTitle("Обнаружены недопустимые символы в никнейме")
+                msg.exec_()
+                return
+
 
     def update_progress_label(self, value):
         self.progress_label = value
@@ -59,15 +74,6 @@ class LaunchThread(QThread):
                                   callback={'setStatus': self.update_progress_label,
                                             'setProgress': self.update_progress, 'setMax': self.update_progress_max})
 
-
-
-        if self.username == '':
-            self.username = generate_username()[0]
-
-
-
-
-
         options = {
             'username': self.username,
             'uuid': str(uuid1()),
@@ -81,9 +87,6 @@ class LaunchThread(QThread):
 
         call(get_minecraft_command(version=self.version_id, minecraft_directory=minecraft_directory, options=options))
         self.state_update_signal.emit(False)
-
-
-
 
 
 class MainWindow(QMainWindow):
@@ -137,7 +140,7 @@ class MainWindow(QMainWindow):
         self.vertical_layout.addWidget(self.version_select)
         self.vertical_layout.addItem(self.progress_spacer)
         self.vertical_layout.addWidget(
-            self.start_progress_label)  # Исправил проблему с созданием описания для полосы прогресса [24:01]
+            self.start_progress_label)
         self.vertical_layout.addWidget(self.start_progress)
         self.vertical_layout.addWidget(self.start_button)
 
@@ -157,12 +160,9 @@ class MainWindow(QMainWindow):
         self.start_progress.setMaximum(max_progress)
         self.start_progress_label.setText(label)
 
-
-
     def launch_game(self):
         self.launch_thread.launch_setup_signal.emit(self.version_select.currentText(), self.username.text())
         self.launch_thread.start()
-
 
 
 
